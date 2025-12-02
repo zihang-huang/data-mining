@@ -1,0 +1,40 @@
+name: bank-marketing
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+
+  # Core Data Science
+  - pandas>=2.0.0
+  - numpy>=1.24.0
+
+  # Machine Learning
+  - scikit-learn>=1.3.0
+
+  # Deep Learning - PyTorch
+  - pytorch>=2.0.0
+  - torchvision>=0.15.0
+
+  # Gradient Boosting
+  - xgboost>=2.0.0
+  - lightgbm>=4.0.0
+  - catboost>=1.2.0
+
+  # Visualization
+  - matplotlib>=3.7.0
+  - seaborn>=0.12.0
+
+  # Model Interpretability
+  - shap>=0.42.0
+
+  # Imbalanced Data (optional)
+  - imbalanced-learn>=0.11.0
+
+  # Model Persistence
+  - joblib>=1.3.0
+
+  # Jupyter (optional, for interactive development)
+  - jupyter
+  - ipykernel
