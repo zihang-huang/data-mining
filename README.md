@@ -29,7 +29,7 @@ pip install -r requirements.txt
 conda env create -f environment.yml
 
 # Activate the environment
-conda activate bank-marketing
+conda activate data-mining-env
 ```
 
 ## Platform-Specific PyTorch Installation
@@ -51,4 +51,4 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 ### CPU Only
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-``
+```

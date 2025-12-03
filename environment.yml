@@ -1,4 +1,4 @@
-name: bank-marketing
+name: data-mining-env
 channels:
   - pytorch
   - conda-forge
