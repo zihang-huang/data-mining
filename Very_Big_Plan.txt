@@ -1,0 +1,22 @@
+Pre-Processing:
+
+    Banking Probelm - HZH
+    1. P-outcome, Contact (majorly unknown)
+    2. Oversampling 'yes'
+
+    Housing Problem - ZRS 
+    1. LSTAT, AGE (some NA)
+
+
+Model:
+
+    Banking Problem (Catagorizing)
+    1. RRL (Interpretable)
+    2. Decision Tree (Hand Write) - XGJ
+    3. XGBoost (Premade)
+    4. Random Forest (Premade)
+
+    Housing Problem (Regression)
+    1. RRL (Interpretable) (Loss function)
+    2. Decision Tree / Shallow NN (Hand Write) (Try)
+    3. XGBoost
