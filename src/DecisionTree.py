@@ -173,10 +173,10 @@ class RegressionTree():
         return np.array(preds)
 
     # prune by validation test, from leaf to rootzheg
-    def prune(self,X_val, y_val, loss_improvement_threshold):
+    def prune(self,X_val, y_val, loss_improvement_threshold=0.0):
         self._prune_calculator(X_val ,y_val, loss_improvement_threshold)
 
-    def _prune_calculator(self,X_val, y_val,loss_improvement_threshold) -> float:
+    def _prune_calculator(self,X_val, y_val,loss_improvement_threshold=0.0) -> float:
         if len(y_val) == 0:
             return 0.0
         X_val = np.asarray(X_val)
@@ -208,5 +208,53 @@ class RegressionTree():
             self.split_value = None 
             return loss_leaf
 
+    # check the information of the whole tree
+    def _collect_stats(self):
+        if self is None:
+            return 0, 0, 0, Counter()
+        node_count = 1
+
+        if self.isleaf:
+            leaf_count = 1
+            actual_depth = 1      # 以当前节点为根的子树深度 = 1
+            feature_counter = Counter()
+            return node_count, leaf_count, actual_depth, feature_counter
+
+        # else, recursively calculate
+        left_nodes, left_leaves, left_depth, left_counter = (0, 0, 0, Counter())
+        right_nodes, right_leaves, right_depth, right_counter = (0, 0, 0, Counter())
+
+        if self.left is not None:
+            left_nodes, left_leaves, left_depth, left_counter = self.left._collect_stats()
+        if self.right is not None:
+            right_nodes, right_leaves, right_depth, right_counter = self.right._collect_stats()
+
+        node_count += left_nodes + right_nodes
+        leaf_count = left_leaves + right_leaves
+        actual_depth = 1 + max(left_depth, right_depth)   
+
+        feature_counter = left_counter + right_counter
+        if self.split_id is not None:
+            feature_counter[self.split_id] += 1
+
+        return node_count, leaf_count, actual_depth, feature_counter
+
+    def get_stats(self, num_features, feature_names):
+        n_nodes, n_leaves, actual_depth, feature_counter = self._collect_stats()
+        feature_counts_array = np.zeros(num_features, dtype=int)
+
+        for fid, cnt in feature_counter.items():
+            if fid is not None and 0 <= fid < num_features:
+                feature_counts_array[fid] = cnt
+
+        feature_name_counter = {
+        feature_names[fid]: count for fid, count in feature_counter.items()
+        }
+        return {
+            "n_nodes": n_nodes,
+            "n_leaves": n_leaves,
+            "actual_depth": actual_depth,         # 真实树深度
+            "feature_counts": feature_name_counter,      # Counter({feature_id: 次数})
+        }
 
 # Classification Tree
