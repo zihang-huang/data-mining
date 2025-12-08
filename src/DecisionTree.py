@@ -258,6 +258,7 @@ class RegressionTree():
         }
 
 # Classification Tree
+# accelerated version!
 class ClassificationTree():
     loss_function_dict = {
         "Gini": Gini,
@@ -312,6 +313,7 @@ class ClassificationTree():
     def fit(self, X, y):
         X = np.asarray(X)
         y = np.asarray(y)
+        n = len(y)
         num_sample, num_feature = X.shape
         isunique = (len(np.unique(y)) == 1)
         # If the number of remaining features = 0 or the classification has meet the standards, return as a leaf node
@@ -330,22 +332,21 @@ class ClassificationTree():
         best_y_left = None
         best_y_right = None
         num_feature = X.shape[1]
-        # y is (n,)
-        y_copied = y.reshape(-1,1)
-        Xy = np.concatenate([X, y_copied], 1)
         # RegressionTree can use the same feature in different nodes
         for feature_id in range(num_feature):
             # sort by given feature
-            Xy_sorted = np.array(sorted(Xy, key=lambda x: x[feature_id])) 
+            order = np.argsort(X[:, feature_id])
+            X_sorted = X[order]
+            y_sorted = y[order]
             # choose the best split value of this feature
-            for split_position in range(len(Xy_sorted)-1):
+            for split_position in range(n-1):
                 # for the same value, split at the last one
-                if Xy_sorted[split_position,feature_id] == Xy_sorted[split_position+1,feature_id]:
+                if X_sorted[split_position,feature_id] == X_sorted[split_position+1,feature_id]:
                     continue
-                X_left = Xy_sorted[:split_position+1,:-1]
-                X_right = Xy_sorted[split_position+1:,:-1]
-                y_left = Xy_sorted[:split_position+1,-1]
-                y_right = Xy_sorted[split_position+1:,-1]
+                X_left = X_sorted[:split_position+1]
+                X_right = X_sorted[split_position+1]
+                y_left = y_sorted[:split_position+1]
+                y_right = y_sorted[split_position+1]
                 # calculate loss
                 loss_left = len(y_left)/len(y) * self.loss_function(y_left)
                 loss_right = len(y_right)/len(y) * self.loss_function(y_right)
@@ -353,7 +354,7 @@ class ClassificationTree():
                 if (loss_left + loss_right < best_loss):
                     best_split_id = feature_id
                     best_split_position = split_position
-                    best_split_value = Xy_sorted[best_split_position, best_split_id]
+                    best_split_value = X_sorted[best_split_position, best_split_id]
                     best_loss = loss_left + loss_right
                     best_X_left = X_left
                     best_X_right = X_right
@@ -361,9 +362,9 @@ class ClassificationTree():
                     best_y_right = y_right
         # Recurese and construct the decision tree
         if best_split_id != None:
-            self.left = RegressionTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
+            self.left = ClassificationTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
             self.left.fit(best_X_left, best_y_left)
-            self.right = RegressionTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
+            self.right = ClassificationTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
             self.right.fit(best_X_right, best_y_right)
             # split info
             self.split_id = best_split_id
