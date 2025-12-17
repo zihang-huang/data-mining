@@ -202,37 +202,52 @@ class RegressionTree():
     def prune(self,X_val, y_val, loss_improvement_threshold=0.0):
         self._prune_calculator(X_val ,y_val, loss_improvement_threshold)
 
-    def _prune_calculator(self,X_val, y_val,loss_improvement_threshold=0.0) -> float:
-        if len(y_val) == 0:
-            return 0.0
-        X_val = np.asarray(X_val)
-        y_val = np.asarray(y_val)
-        # calculate the loss if this node were leaf node
-        preds_leaf = np.full_like(y_val, self.value, dtype=float)
-        loss_leaf = np.sum((y_val - preds_leaf)**2)
-        if self.isleaf:
-            return loss_leaf
-        # if not leaf, compare the loss of splitting as before and as a leaf node
-        left_id = X_val[:,self.split_id]<= self.split_value
-        X_left, y_left = X_val[left_id], y_val[left_id]
-        X_right, y_right = X_val[~left_id], y_val[~left_id]
+def _prune_calculator(self, X_val, y_val, loss_improvement_threshold=0.0) -> float:
+    X_val = np.asarray(X_val)
+    y_val = np.asarray(y_val)
 
-        loss_subtree = 0.0
-        if self.left is not None:
-            loss_subtree += self.left._prune_calculator(X_left, y_left, loss_improvement_threshold)
-        if self.right is not None:
-            loss_subtree += self.right._prune_calculator(X_right, y_right, loss_improvement_threshold)
-        
-        if loss_subtree < loss_leaf + loss_improvement_threshold: 
-            # not prune
-            return loss_subtree
-        else:
-            self.isleaf = True
-            self.left = None
-            self.right = None
-            self.split_id = None
-            self.split_value = None 
-            return loss_leaf
+    # 1) no validation coverage -> prune conservatively (simplify model)
+    if y_val.size == 0:
+        self.isleaf = True
+        self.left = None
+        self.right = None
+        self.split_id = None
+        self.split_value = None
+        return 0.0
+
+    # SSE if this node is forced to be a leaf
+    loss_leaf = np.sum((y_val - float(self.value)) ** 2)
+
+    # already a leaf (or malformed internal node)
+    if self.isleaf or self.split_id is None or self.left is None or self.right is None:
+        self.isleaf = True
+        self.left = None
+        self.right = None
+        self.split_id = None
+        self.split_value = None
+        return loss_leaf
+
+    # split validation data
+    mask = X_val[:, self.split_id] <= self.split_value
+    X_left, y_left = X_val[mask], y_val[mask]
+    X_right, y_right = X_val[~mask], y_val[~mask]
+
+    # subtree loss (after children may prune themselves)
+    loss_subtree = self.left._prune_calculator(X_left, y_left, loss_improvement_threshold) \
+                 + self.right._prune_calculator(X_right, y_right, loss_improvement_threshold)
+
+    # 2) keep subtree only if it improves by at least threshold
+    # improvement = loss_leaf - loss_subtree
+    if loss_subtree + loss_improvement_threshold < loss_leaf:
+        self.isleaf = False
+        return loss_subtree
+    else:
+        self.isleaf = True
+        self.left = None
+        self.right = None
+        self.split_id = None
+        self.split_value = None
+        return loss_leaf
 
     # check the information of the whole tree
     def _collect_stats(self):
