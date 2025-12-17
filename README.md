@@ -22,6 +22,12 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Update dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
 ### Option 2: Using conda (recommended for data science)
 
 ```bash
@@ -32,28 +38,35 @@ conda env create -f environment.yml
 conda activate data-mining-env
 ```
 
+Update dependencies
+
+```bash
+conda env update -f environment.yml
+```
+
 ## Platform-Specific PyTorch Installation
 
 The scripts support GPU acceleration if available. For optimal performance:
 
 ### macOS (Apple Silicon - M1/M2/M3)
+
 ```bash
 # PyTorch with MPS (Metal Performance Shaders) support
 pip install torch torchvision
 ```
 
 ### Linux/Windows with NVIDIA GPU
+
 ```bash
 # PyTorch with CUDA support (check https://pytorch.org for your CUDA version)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 ```
 
 ### CPU Only
+
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 ```
-
-
 
 本地编辑的东西
 
