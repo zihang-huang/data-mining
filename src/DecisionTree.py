@@ -344,9 +344,9 @@ class ClassificationTree():
                 if X_sorted[split_position,feature_id] == X_sorted[split_position+1,feature_id]:
                     continue
                 X_left = X_sorted[:split_position+1]
-                X_right = X_sorted[split_position+1]
+                X_right = X_sorted[split_position+1:]
                 y_left = y_sorted[:split_position+1]
-                y_right = y_sorted[split_position+1]
+                y_right = y_sorted[split_position+1:]
                 # calculate loss
                 loss_left = len(y_left)/len(y) * self.loss_function(y_left)
                 loss_right = len(y_right)/len(y) * self.loss_function(y_right)
