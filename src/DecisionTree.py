@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+from tqdm import tqdm
 
 ###################################
 # loss functions
@@ -48,7 +49,7 @@ class RegressionTree():
     }
 
     # initialize a tree
-    def __init__(self, loss_function="MSE_mean", leaf_value_estimator="mean", max_depth=20,current_depth=0,min_sample=5,loss_threshold=1e-5):
+    def __init__(self, loss_function="MSE_mean", leaf_value_estimator="mean", max_depth=20,current_depth=0,min_sample=5,loss_threshold=1e-5, verbose=False, _pbar=None):
         self.loss_function_name = loss_function
         self.estimator_name = leaf_value_estimator
         try:
@@ -65,18 +66,20 @@ class RegressionTree():
             f"Unknown leaf_value_estimator '{leaf_value_estimator}'. "
             f"Available: {list(self.estimator_dict.keys())}"
         )
-        
+
         self.max_depth = max_depth
         self.current_depth = current_depth
         self.min_sample = min_sample
         self.loss_threshold = loss_threshold
+        self.verbose = verbose
+        self._pbar = _pbar
         # tree structure
         self.split_id = None
         self.split_value = None
         self.isleaf = None
         self.left = None
-        self.right = None 
-        self.value = None 
+        self.right = None
+        self.value = None
 
     # Check the node infomation
     def node_info(self):
@@ -94,11 +97,26 @@ class RegressionTree():
         y = np.asarray(y)
         num_sample, num_feature = X.shape
         isunique = (len(np.unique(y)) == 1)
+
+        # Initialize progress bar at root level
+        if self.verbose and self.current_depth == 0:
+            self._pbar = tqdm(total=0, desc="Building RegressionTree", unit="nodes")
+
+        # Update progress bar
+        if self._pbar is not None:
+            self._pbar.total += 1
+            self._pbar.update(0)
+            self._pbar.set_postfix(depth=self.current_depth, samples=num_sample)
+
         # If the number of remaining features = 0 or the classification has meet the standards, return as a leaf node
         # Only the leaf node has the value
         if self.current_depth >= self.max_depth or num_sample <= self.min_sample or isunique or self.loss_function(y)<self.loss_threshold:
             self.isleaf = True
             self.value = self.leaf_value_estimator(y)
+            if self._pbar is not None:
+                self._pbar.update(1)
+            if self.verbose and self.current_depth == 0 and self._pbar is not None:
+                self._pbar.close()
             return self
         # Else, split and recurse to left and right sub-trees
         best_loss = self.loss_function(y)
@@ -116,7 +134,7 @@ class RegressionTree():
         # RegressionTree can use the same feature in different nodes
         for feature_id in range(num_feature):
             # sort by given feature
-            Xy_sorted = np.array(sorted(Xy, key=lambda x: x[feature_id])) 
+            Xy_sorted = np.array(sorted(Xy, key=lambda x: x[feature_id]))
             # choose the best split value of this feature
             for split_position in range(len(Xy_sorted)-1):
                 # for the same value, split at the last one
@@ -139,20 +157,28 @@ class RegressionTree():
                     best_X_right = X_right
                     best_y_left = y_left
                     best_y_right = y_right
+
+        if self._pbar is not None:
+            self._pbar.update(1)
+
         # Recurese and construct the decision tree
         if best_split_id != None:
-            self.left = RegressionTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
+            self.left = RegressionTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold, verbose=False, _pbar=self._pbar)
             self.left.fit(best_X_left, best_y_left)
-            self.right = RegressionTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
+            self.right = RegressionTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold, verbose=False, _pbar=self._pbar)
             self.right.fit(best_X_right, best_y_right)
             # split info
             self.split_id = best_split_id
             self.split_value = best_split_value
             # prepare for pruning
             self.value = self.leaf_value_estimator(y)
-        else: 
+        else:
             self.isleaf = True
             self.value = self.leaf_value_estimator(y)
+
+        # Close progress bar at root level
+        if self.verbose and self.current_depth == 0 and self._pbar is not None:
+            self._pbar.close()
         return self
 
     # Predict the value given a new instance
@@ -269,7 +295,7 @@ class ClassificationTree():
     }
 
     # initialize a tree
-    def __init__(self, loss_function="Entropy", leaf_value_estimator="most_common_vote", max_depth=20,current_depth=0,min_sample=5,loss_threshold=1e-5):
+    def __init__(self, loss_function="Entropy", leaf_value_estimator="most_common_vote", max_depth=20,current_depth=0,min_sample=5,loss_threshold=1e-5, verbose=False, _pbar=None):
         self.loss_function_name = loss_function
         self.estimator_name = leaf_value_estimator
         try:
@@ -286,17 +312,19 @@ class ClassificationTree():
             f"Unknown leaf_value_estimator '{leaf_value_estimator}'. "
             f"Available: {list(self.estimator_dict.keys())}"
         )
-        
+
         self.max_depth = max_depth
         self.current_depth = current_depth
         self.min_sample = min_sample
         self.loss_threshold = loss_threshold
+        self.verbose = verbose
+        self._pbar = _pbar
         # tree structure
         self.split_id = None
         self.split_value = None
         self.isleaf = None
         self.left = None
-        self.right = None 
+        self.right = None
         self.value = None 
 
     # Check the node infomation
@@ -316,11 +344,26 @@ class ClassificationTree():
         n = len(y)
         num_sample, num_feature = X.shape
         isunique = (len(np.unique(y)) == 1)
+
+        # Initialize progress bar at root level
+        if self.verbose and self.current_depth == 0:
+            self._pbar = tqdm(total=0, desc="Building ClassificationTree", unit="nodes")
+
+        # Update progress bar
+        if self._pbar is not None:
+            self._pbar.total += 1
+            self._pbar.update(0)
+            self._pbar.set_postfix(depth=self.current_depth, samples=num_sample)
+
         # If the number of remaining features = 0 or the classification has meet the standards, return as a leaf node
         # Only the leaf node has the value
         if self.current_depth >= self.max_depth or num_sample <= self.min_sample or isunique or self.loss_function(y)<self.loss_threshold:
             self.isleaf = True
             self.value = self.leaf_value_estimator(y)
+            if self._pbar is not None:
+                self._pbar.update(1)
+            if self.verbose and self.current_depth == 0 and self._pbar is not None:
+                self._pbar.close()
             return self
         # Else, split and recurse to left and right sub-trees
         best_loss = self.loss_function(y)
@@ -360,20 +403,28 @@ class ClassificationTree():
                     best_X_right = X_right
                     best_y_left = y_left
                     best_y_right = y_right
+
+        if self._pbar is not None:
+            self._pbar.update(1)
+
         # Recurese and construct the decision tree
         if best_split_id != None:
-            self.left = ClassificationTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
+            self.left = ClassificationTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold, verbose=False, _pbar=self._pbar)
             self.left.fit(best_X_left, best_y_left)
-            self.right = ClassificationTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold)
+            self.right = ClassificationTree(self.loss_function_name, self.estimator_name, self.max_depth, current_depth=self.current_depth + 1, min_sample=self.min_sample, loss_threshold=self.loss_threshold, verbose=False, _pbar=self._pbar)
             self.right.fit(best_X_right, best_y_right)
             # split info
             self.split_id = best_split_id
             self.split_value = best_split_value
             # prepare for pruning
             self.value = self.leaf_value_estimator(y)
-        else: 
+        else:
             self.isleaf = True
             self.value = self.leaf_value_estimator(y)
+
+        # Close progress bar at root level
+        if self.verbose and self.current_depth == 0 and self._pbar is not None:
+            self._pbar.close()
         return self
 
     # Predict the value given a new instance
