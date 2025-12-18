@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from sklearn import metrics
 from collections import defaultdict
+from tqdm.auto import tqdm
 
 from rrl.components import BinarizeLayer
 from rrl.components import UnionLayer, LRLayer
@@ -164,8 +165,8 @@ class RRL:
             param_group['lr'] = lr
         return optimizer
 
-    def train_model(self, data_loader=None, valid_loader=None, epoch=50, lr=0.01, lr_decay_epoch=100, 
-                    lr_decay_rate=0.75, weight_decay=0.0, log_iter=50):
+    def train_model(self, data_loader=None, valid_loader=None, epoch=50, lr=0.01, lr_decay_epoch=100,
+                    lr_decay_rate=0.75, weight_decay=0.0, log_iter=50, show_progress=True):
 
         if data_loader is None:
             raise Exception("Data loader is unavailable!")
@@ -179,7 +180,11 @@ class RRL:
         cnt = -1
         avg_batch_loss_rrl = 0.0
         epoch_histc = defaultdict(list)
-        for epo in range(epoch):
+
+        # Progress bar for epochs
+        epoch_pbar = tqdm(range(epoch), desc="Training", disable=not show_progress, unit="epoch")
+
+        for epo in epoch_pbar:
             optimizer = self.exp_lr_scheduler(optimizer, epo, init_lr=lr, lr_decay_rate=lr_decay_rate,
                                               lr_decay_epoch=lr_decay_epoch)
 
@@ -188,7 +193,12 @@ class RRL:
             abs_gradient_avg = 0.0
 
             ba_cnt = 0
-            for X, y in data_loader:
+
+            # Progress bar for batches within each epoch
+            batch_pbar = tqdm(data_loader, desc=f"Epoch {epo+1}/{epoch}",
+                             leave=False, disable=not show_progress, unit="batch")
+
+            for X, y in batch_pbar:
                 ba_cnt += 1
                 X = X.to(self.device)
                 y = y.to(self.device)
@@ -205,6 +215,9 @@ class RRL:
                 avg_batch_loss_rrl += ba_loss_rrl
                 
                 loss_rrl.backward()
+
+                # Update batch progress bar with current loss
+                batch_pbar.set_postfix(loss=f"{ba_loss_rrl:.4f}")
 
                 cnt += 1
                 with torch.no_grad():
@@ -239,6 +252,13 @@ class RRL:
                     if self.writer is not None:
                         self.writer.add_scalar('Accuracy_RRL', acc_b, cnt // TEST_CNT_MOD)
                         self.writer.add_scalar('F1_Score_RRL', f1_b, cnt // TEST_CNT_MOD)
+            # Update epoch progress bar with loss and best F1
+            avg_loss = epoch_loss_rrl / ba_cnt if ba_cnt > 0 else 0
+            epoch_pbar.set_postfix(
+                loss=f"{avg_loss:.4f}",
+                best_f1=f"{self.best_f1:.4f}" if self.best_f1 > 0 else "N/A"
+            )
+
             if self.is_rank0:
                 logging.info('epoch: {}, loss_rrl: {}'.format(epo, epoch_loss_rrl))
                 if self.writer is not None:
@@ -250,10 +270,10 @@ class RRL:
         return epoch_histc
 
     @torch.no_grad()
-    def test(self, test_loader=None, set_name='Validation'):
+    def test(self, test_loader=None, set_name='Validation', show_progress=False):
         if test_loader is None:
             raise Exception("Data loader is unavailable!")
-        
+
         y_list = []
         for X, y in test_loader:
             y_list.append(y)
@@ -266,7 +286,9 @@ class RRL:
         logging.debug('y_true: {} {}'.format(y_true.shape, y_true[:: slice_step]))
 
         y_pred_b_list = []
-        for X, y in test_loader:
+        test_pbar = tqdm(test_loader, desc=f"Evaluating ({set_name})",
+                        leave=False, disable=not show_progress, unit="batch")
+        for X, y in test_pbar:
             X = X.to(self.device)
             output = self.net.forward(X)
             y_pred_b_list.append(output)
