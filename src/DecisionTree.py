@@ -108,6 +108,7 @@ class RegressionTree():
             self._pbar.update(0)
             self._pbar.set_postfix(depth=self.current_depth, samples=num_sample)
 
+
         # If the number of remaining features = 0 or the classification has meet the standards, return as a leaf node
         # Only the leaf node has the value
         if self.current_depth >= self.max_depth or num_sample <= self.min_sample or isunique or self.loss_function(y)<self.loss_threshold:
@@ -182,21 +183,24 @@ class RegressionTree():
         return self
 
     # Predict the value given a new instance
-    def predict_single(self, X_new):
+    def _predict_single(self, X_new):
         # Only leaf node has the value
         if self.isleaf:
             return self.value
         else:
             if X_new[self.split_id] <= self.split_value:
-                return self.left.predict_single(X_new)
+                return self.left._predict_single(X_new)
             else:
-                return self.right.predict_single(X_new)
+                return self.right._predict_single(X_new)
     
     # Predict the value given a batch of new instances
-    def predict_batch(self,X_new):
-        X = np.array(X_new)
-        preds = [self.predict_single(x) for x in X]
-        return np.array(preds)
+    def predict(self,X_new):
+        if X_new.shape[0] == 1:
+            return self._predict_single(X_new)
+        else:
+            X = np.array(X_new)
+            preds = [self._predict_single(x) for x in X]
+            return np.array(preds)
 
     # prune by validation test, from leaf to rootzheg
     def prune(self,X_val, y_val, loss_improvement_threshold=0.0):
